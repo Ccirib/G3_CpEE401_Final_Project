@@ -206,6 +206,7 @@ function renderPerformanceChart() {
   const prelimAvg = getAvg('prelim');
   const midtermAvg = getAvg('midterm');
   const semiFinalAvg = getAvg('semi_final');
+  const finalExamAvg = getAvg('final_exam');
 
   // If no data yet, don't render or show empty state?
   // Let's render it anyway, maybe with a note.
@@ -220,10 +221,10 @@ function renderPerformanceChart() {
   window.perfChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: ['Prelim', 'Midterm', 'Semi-Final'],
+      labels: ['Prelim', 'Midterm', 'Semi-Final', 'Final Exam'],
       datasets: [{
         label: 'Average Score',
-        data: [prelimAvg, midtermAvg, semiFinalAvg],
+        data: [prelimAvg, midtermAvg, semiFinalAvg, finalExamAvg],
         borderColor: '#800000', // Maroon
         backgroundColor: 'rgba(128, 0, 0, 0.1)',
         borderWidth: 3,
