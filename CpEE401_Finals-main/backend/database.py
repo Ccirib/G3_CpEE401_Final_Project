@@ -1,27 +1,41 @@
-import sqlite3, os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import os
 import random
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "grades.db")
+# ── Database Connection Configuration ──
+DB_HOST = os.environ.get("DB_HOST", "localhost")
+DB_NAME = os.environ.get("DB_NAME", "redsentry_db")
+DB_USER = os.environ.get("DB_USER", "postgres")
+DB_PASS = os.environ.get("DB_PASS", "admin123") # Update to your local Postgres password
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS
+    )
     return conn
 
 def init_db():
-    db = get_db()
-    db.execute("PRAGMA foreign_keys = OFF;")
-    tables = ["attendance", "grades", "enrollments", "students", "sections", "subjects", "instructors", "announcements", "grade_audit_trail", "todos"]
+    conn = get_db()
+    # Use RealDictCursor so fetched rows act like dictionaries (matches sqlite3.Row)
+    cursor = conn.cursor(cursor_factory=RealDictCursor) 
+    
+    # Drop existing tables safely using CASCADE for PostgreSQL
+    tables = [
+        "todos", "grade_audit_trail", "announcements", "attendance", 
+        "grades", "enrollments", "sections", "subjects", 
+        "instructors", "students"
+    ]
     for table in tables:
-        try:
-            db.execute(f"DROP TABLE IF EXISTS {table}")
-        except:
-            pass
-    db.execute("PRAGMA foreign_keys = ON;")
+        cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
 
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS students (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    # ── Create Tables (PostgreSQL Dialect) ──
+    cursor.execute("""
+        CREATE TABLE students (
+            id             SERIAL PRIMARY KEY,
             student_number TEXT    UNIQUE NOT NULL,
             full_name      TEXT    NOT NULL,
             email          TEXT    NOT NULL,
@@ -30,35 +44,35 @@ def init_db():
             year_level     TEXT    NOT NULL,
             section        TEXT    NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS instructors (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE instructors (
+            id            SERIAL PRIMARY KEY,
             instructor_id TEXT    UNIQUE NOT NULL,
             full_name     TEXT    NOT NULL,
             password      TEXT    NOT NULL,
             department    TEXT    NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS subjects (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE subjects (
+            id           SERIAL PRIMARY KEY,
             subject_code TEXT    UNIQUE NOT NULL,
             subject_name TEXT    NOT NULL,
             units        INTEGER NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS sections (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE sections (
+            id            SERIAL PRIMARY KEY,
             section_name  TEXT    NOT NULL,
-            subject_id    INTEGER NOT NULL REFERENCES subjects(id),
-            instructor_id INTEGER NOT NULL REFERENCES instructors(id)
+            subject_id    INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+            instructor_id INTEGER NOT NULL REFERENCES instructors(id) ON DELETE CASCADE
         );
-        CREATE TABLE IF NOT EXISTS enrollments (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL REFERENCES students(id),
-            subject_id INTEGER NOT NULL REFERENCES subjects(id),
-            section_id INTEGER NOT NULL REFERENCES sections(id)
+        CREATE TABLE enrollments (
+            id         SERIAL PRIMARY KEY,
+            student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+            subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+            section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE
         );
-        CREATE TABLE IF NOT EXISTS grades (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id      INTEGER NOT NULL REFERENCES students(id),
-            subject_id      INTEGER NOT NULL REFERENCES subjects(id),
+        CREATE TABLE grades (
+            id              SERIAL PRIMARY KEY,
+            student_id      INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+            subject_id      INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
             prelim          REAL,
             midterm         REAL,
             semi_final      REAL,
@@ -67,48 +81,48 @@ def init_db():
             remarks         TEXT,
             private_comment TEXT
         );
-        CREATE TABLE IF NOT EXISTS attendance (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id       INTEGER NOT NULL REFERENCES students(id),
-            subject_id       INTEGER NOT NULL REFERENCES subjects(id),
+        CREATE TABLE attendance (
+            id               SERIAL PRIMARY KEY,
+            student_id       INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+            subject_id       INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
             total_classes    INTEGER DEFAULT 0,
             classes_attended INTEGER DEFAULT 0,
             absences         INTEGER DEFAULT 0,
             remarks          TEXT    DEFAULT 'GOOD'
         );
-        CREATE TABLE IF NOT EXISTS announcements (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            instructor_id INTEGER NOT NULL REFERENCES instructors(id),
+        CREATE TABLE announcements (
+            id            SERIAL PRIMARY KEY,
+            instructor_id INTEGER NOT NULL REFERENCES instructors(id) ON DELETE CASCADE,
             content       TEXT    NOT NULL,
             created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        CREATE TABLE IF NOT EXISTS grade_audit_trail (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            grade_id      INTEGER NOT NULL REFERENCES grades(id),
+        CREATE TABLE grade_audit_trail (
+            id            SERIAL PRIMARY KEY,
+            grade_id      INTEGER NOT NULL REFERENCES grades(id) ON DELETE CASCADE,
             column_name   TEXT    NOT NULL,
             old_value     REAL,
             new_value     REAL,
             changed_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            instructor_id INTEGER REFERENCES instructors(id)
+            instructor_id INTEGER REFERENCES instructors(id) ON DELETE SET NULL
         );
-        CREATE TABLE IF NOT EXISTS todos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL REFERENCES students(id),
-            task_name TEXT NOT NULL,
+        CREATE TABLE todos (
+            id           SERIAL PRIMARY KEY,
+            student_id   INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+            task_name    TEXT NOT NULL,
             subject_code TEXT,
-            due_date TEXT,
-            is_completed BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            due_date     TEXT,
+            is_completed BOOLEAN DEFAULT FALSE,
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
-    # ── Instructors ──────────────────────────────────────────
-    db.execute("INSERT INTO instructors(instructor_id,full_name,password,department) VALUES(?,?,?,?)",
-               ("INST-001","Engr. Kurt Atienza","atienza123","Computer Engineering"))
-    db.execute("INSERT INTO instructors(instructor_id,full_name,password,department) VALUES(?,?,?,?)",
-               ("INST-002","Engr. Teopilo Luistro","luistro123","Computer Engineering"))
+    # ── Instructors ──
+    cursor.execute("INSERT INTO instructors(instructor_id,full_name,password,department) VALUES(%s,%s,%s,%s);",
+                   ("INST-001","Engr. Kurt Atienza","atienza123","Computer Engineering"))
+    cursor.execute("INSERT INTO instructors(instructor_id,full_name,password,department) VALUES(%s,%s,%s,%s);",
+                   ("INST-002","Engr. Teopilo Luistro","luistro123","Computer Engineering"))
 
-    # ── Subjects ─────────────────────────────────────────────
+    # ── Subjects ──
     subjects = [
         ("CpE 411", "Data Structures and Algorithms", 2),
         ("CpE 414", "Feedback and Control Systems", 3),
@@ -120,9 +134,9 @@ def init_db():
         ("Fili 102", "Filipino sa Iba't-ibang Disiplina", 3),
     ]
     for s in subjects:
-        db.execute("INSERT INTO subjects(subject_code,subject_name,units) VALUES(?,?,?)", s)
+        cursor.execute("INSERT INTO subjects(subject_code,subject_name,units) VALUES(%s,%s,%s);", s)
 
-    # ── Sections ─────────────────────────────────────────────
+    # ── Sections ──
     sections = []
     sec_names = ["CpE 3101", "CpE 3102", "CpE 3103", "CpE 3104"]
     for sec_name in sec_names:
@@ -137,9 +151,9 @@ def init_db():
             (sec_name, 8, 2), # Fili 102 -> Engr. Luistro
         ])
     for s in sections:
-        db.execute("INSERT INTO sections(section_name,subject_id,instructor_id) VALUES(?,?,?)", s)
+        cursor.execute("INSERT INTO sections(section_name,subject_id,instructor_id) VALUES(%s,%s,%s);", s)
 
-    # ── Students ─────────────────────────────────────────────
+    # ── Students ──
     students = [
         ("24-03035", "Jethro Emmanuel Linga", "24-03035@g.batstate-u.edu.ph", "12345", "BS CpE", "3rd Year", "CpE 3101"),
         ("24-08707", "John Melvin Bueno", "24-08707@g.batstate-u.edu.ph", "12345", "BS CpE", "3rd Year", "CpE 3101"),
@@ -186,45 +200,30 @@ def init_db():
         ("24-05123", "Norlaineca Mae Lim", "24-05123@g.batstate-u.edu.ph", "12345", "BS CpE", "3rd Year", "CpE 3103")
     ]
     for s in students:
-        db.execute("INSERT INTO students(student_number,full_name,email,password,course,year_level,section) VALUES(?,?,?,?,?,?,?)", s)
+        cursor.execute("INSERT INTO students(student_number,full_name,email,password,course,year_level,section) VALUES(%s,%s,%s,%s,%s,%s,%s);", s)
 
-    # ── Enrollments ──────────────────────────────────────────
-    sec_rows = db.execute("SELECT id, section_name, subject_id FROM sections").fetchall()
+    # ── Enrollments ──
+    cursor.execute("SELECT id, section_name, subject_id FROM sections;")
+    sec_rows = cursor.fetchall()
     
     for sid in range(1, len(students) + 1):
         student_section = students[sid-1][6]
+        # Match using the RealDictCursor dictionary keys
         my_sections = [r for r in sec_rows if r["section_name"] == student_section]
         for sec in my_sections:
-            db.execute("INSERT INTO enrollments(student_id,subject_id,section_id) VALUES(?,?,?)",
-                       (sid, sec["subject_id"], sec["id"]))
+            cursor.execute("INSERT INTO enrollments(student_id,subject_id,section_id) VALUES(%s,%s,%s);",
+                           (sid, sec["subject_id"], sec["id"]))
 
-    # ── Realistic Grades (Awaiting Final Exam) ─────────────
-    for sid in range(1, len(students) + 1):
-        for subj in range(1, 9):
-            def get_grade():
-                return max(60, min(100, round(random.gauss(82, 12), 2)))
-            
-            p = get_grade()
-            m = get_grade()
-            sf = get_grade()
-            db.execute(
-                "INSERT INTO grades(student_id,subject_id,prelim,midterm,semi_final,final_exam,final_grade,remarks) VALUES(?,?,?,?,?,?,?,?)",
-                (sid, subj, p, m, sf, None, None, None)
-            )
+    # ── Realistic Grades (Awaiting Final Exam)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print("✅ RedSentry database initialized under PostgreSQL.")
 
-    # ── Realistic Attendance ───────────────────────────────────
-    for sid in range(1, len(students) + 1):
-        for subj in range(1, 9):
-            absences = max(0, min(15, int(random.gauss(2, 4))))
-            attended = 45 - absences
-            remarks = "GOOD" if absences <= 6 else "AT RISK"
-            db.execute(
-                "INSERT INTO attendance(student_id,subject_id,total_classes,classes_attended,absences,remarks) VALUES(?,?,?,?,?,?)",
-                (sid, subj, 45, attended, absences, remarks)
-            )
-
-    db.commit(); db.close()
-    print("RedSentry database initialized.")
-
+# --- MAKE SURE THIS BLOCK IS AT THE VERY BOTTOM ---
 if __name__ == "__main__":
-    init_db()
+    print("🚀 Starting database script...")
+    try:
+        init_db()
+    except Exception as e:
+        print(f"❌ ERROR: {e}")
