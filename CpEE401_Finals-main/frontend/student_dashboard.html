@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RedSentry — Student Dashboard</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .subject-row td:first-child { font-weight: 700; color: var(--gray-800); }
+    .subject-code { font-family: monospace; font-size: .82rem; color: var(--maroon); }
+    .view-btn { white-space: nowrap; }
+
+    /* Grade computation breakdown */
+    .comp-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+    .comp-item {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .comp-item .ci-label { font-size: .75rem; font-weight: 700; color: var(--gray-400); text-transform: uppercase; }
+    .comp-item .ci-score { font-family: 'Merriweather', serif; font-size: 1.5rem; font-weight: 900; color: var(--gray-800); line-height: 1.1; }
+    .comp-item .ci-weight { font-size: .78rem; color: var(--gray-400); }
+    .comp-item .ci-weighted { font-size: .88rem; font-weight: 700; color: var(--maroon); }
+
+    .final-result {
+      background: var(--maroon);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--white);
+    }
+    .final-result .fr-label { font-size: .85rem; opacity: .75; }
+    .final-result .fr-grade { font-family: 'Merriweather', serif; font-size: 2rem; font-weight: 900; }
+    .final-result .fr-remarks { display: inline-block; background: rgba(255,255,255,.2); padding: .25rem .75rem; border-radius: 20px; font-size: .8rem; font-weight: 700; margin-top: .25rem; }
+
+    .formula-note {
+      font-size: .78rem;
+      color: var(--gray-400);
+      text-align: center;
+      margin-top: .75rem;
+      padding-top: .75rem;
+      border-top: 1px solid var(--gray-100);
+    }
+
+    /* Attendance */
+    .att-pct {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .att-pct span { font-size: .82rem; font-weight: 700; min-width: 38px; text-align: right; }
+    /* ── MODAL SCROLL FIX ── */
+    .modal {
+      max-height: 90vh; /* Prevents the modal from exceeding 90% of the screen height */
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .modal-header {
+      flex-shrink: 0; /* Keeps the header and 'X' button permanently visible at the top */
+    }
+    
+    .modal-body {
+      overflow-y: auto; /* Adds a vertical scrollbar only to the content area */
+      overflow-x: hidden;
+      padding-bottom: 2rem; /* Adds a little extra breathing room at the bottom */
+    }
+
+    /* ── FIX FOR MODAL CLOSE BUTTON ── */
+    .modal-close {
+      position: relative;
+      z-index: 9999; /* Forces the button to be clickable above all other elements */
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--gray-400);
+    }
+    .modal-close:hover { color: var(--maroon); }
+
+    /* ── SANDBOX INPUT STYLES ── */
+    .edit-input {
+      width: 100%;
+      font-family: 'Merriweather', serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--gray-800);
+      background: transparent;
+      border: 1px dashed var(--gray-300); /* Dashed border indicates it's editable */
+      border-radius: 4px;
+      padding: 0.25rem;
+      margin: 0.25rem 0;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    }
+    .edit-input:focus {
+      outline: none;
+      border: 1px solid var(--maroon);
+      background: #fff;
+    }
+    /* Hide the ugly up/down arrows on number inputs */
+    .edit-input::-webkit-outer-spin-button,
+    .edit-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    /* ── ENHANCED DARK MODE VARIABLES & OVERRIDES ── */
+    body.dark-theme {
+      /* Backgrounds */
+      --gray-50: #121212;  
+      --white: #1e1e1e;    
+      --gray-100: #2c2c2c; 
+      --gray-200: #3d3d3d; 
+      --gray-300: #555555;
+      
+      /* Text Colors (Brightened for contrast) */
+      --gray-400: #b0b0b0; /* Lightened secondary text */
+      --gray-800: #f5f5f5; /* Brightened primary text */
+
+      /* Crucial: Lighten the maroon for dark mode so headings and stats pop! */
+      --maroon: #ff7e7e;   
+      --maroon-pale: #3a1c1c;
+      
+      background-color: var(--gray-50);
+      color: var(--gray-800);
+    }
+    
+    /* 1. Force Headings & Highlights to use the new bright maroon */
+    body.dark-theme h1, body.dark-theme h2, 
+    body.dark-theme h3, body.dark-theme h4,
+    body.dark-theme .stat-value {
+      color: var(--maroon) !important;
+    }
+
+    /* 2. Fix the Sidebar Text & Active Tab */
+    body.dark-theme .sidebar-link {
+      color: var(--gray-400);
+    }
+    body.dark-theme .sidebar-link:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    body.dark-theme .sidebar-link.active {
+      background-color: #3a1c1c; /* Dark red background */
+      color: #ffcccc; /* Light pink/white text */
+      border-left-color: var(--maroon);
+    }
+
+    /* 3. Fix Table Text & Borders */
+    body.dark-theme table th { 
+      background: #2a2a2a; 
+      color: #b0b0b0; 
+      border-bottom: 2px solid var(--gray-200);
+    }
+    body.dark-theme table td { 
+      color: var(--gray-800);
+      border-bottom: 1px solid var(--gray-200); 
+    }
+    body.dark-theme strong, 
+    body.dark-theme .subject-row td:first-child {
+      color: #ffffff !important; 
+    }
+
+    /* 4. Fix Cards & Modals */
+    body.dark-theme .card, 
+    body.dark-theme .modal, 
+    body.dark-theme .sidebar { 
+      background-color: var(--white); 
+      border-color: var(--gray-200);
+    }
+    
+    /* 5. Fix Badges (Like 'PENDING') */
+    body.dark-theme .badge-pending {
+      background-color: #333333;
+      color: #dddddd;
+      border: 1px solid #555555;
+    }
+
+    /* 6. Adapt the "What-If" Sandbox Inputs */
+    body.dark-theme .edit-input { color: #ffffff; }
+    body.dark-theme .edit-input:focus { background: #2a2a2a; border-color: var(--maroon); }
+    body.dark-theme .comp-item { background: #2a2a2a; border-color: #3d3d3d; }
+    
+    /* ── TO-DO LIST STYLES ── */
+    .todo-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--gray-100);
+      transition: background 0.2s;
+    }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-item:hover { background: var(--gray-50); }
+    .todo-item.completed .todo-text { text-decoration: line-through; color: var(--gray-400); }
+    body.dark-theme .todo-item { border-bottom-color: var(--gray-200); }
+    body.dark-theme .todo-item:hover { background: #2a2a2a; }
+
+    /* ── PRINT GRADE SLIP ── */
+    @media print {
+      body, body.dark-theme { background: white !important; color: black !important; margin: 0; padding: 0; }
+      body *, body.dark-theme * { visibility: hidden; }
+      #tab-grades, #tab-grades * { visibility: visible; }
+      #tab-grades { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+      #print-header, #print-header * { display: block !important; visibility: visible; }
+      
+      .sidebar, .navbar, .page-header p, .page-header h2, .print-btn, #theme-toggle, .view-btn { display: none !important; }
+      
+      .card { border: none !important; box-shadow: none !important; background: transparent !important; margin: 0 !important; }
+      .table-wrap { border: none !important; box-shadow: none !important; margin-top: 10px; }
+      
+      table { width: 100% !important; border-collapse: collapse !important; }
+      table th, table td { color: black !important; border: 1px solid #ccc !important; padding: 8px !important; }
+      table th:nth-child(8), table td:nth-child(8) { display: none !important; }
+      
+      .badge-pending, .badge-passed, .badge-failed { 
+        color: black !important; border: none !important; background: none !important; font-weight: bold;
+      }
+      .subject-code { color: black !important; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar" style="display: flex; justify-content: space-between; align-items: center;">
+  <a class="navbar-brand" href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+    <img src="../BSU_logo.png" alt="BSU Logo" style="height: 45px; width: auto;" onerror="this.style.display='none'" />
+    <div class="navbar-logo-text">
+      <div class="brand-name" style="font-weight: 900; font-size: 1.3rem; color: white;">RedSentry</div>
+      <div class="brand-sub" style="font-size: 0.75rem; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px;">Spartan Progress Tracker</div>
+    </div>
+  </a>
+  <div class="navbar-right" style="display: flex; align-items: center; gap: 15px;">
+    <span class="navbar-user" id="nav-username" style="color: white;">—</span>
+    
+    <button id="theme-toggle" onclick="toggleTheme()" style="background: transparent; border: none; font-size: 1.2rem; cursor: pointer; color: var(--gold-light); transition: 0.2s;" title="Toggle Dark Mode">
+      🌙
+    </button>
+
+    <button class="btn btn-ghost btn-sm" style="color:var(--gold-light); background: rgba(255,255,255,0.1); border-radius: 4px; padding: 5px 10px; border: none; cursor: pointer;" onclick="logout()">
+      ⎋ Logout
+    </button>
+  </div>
+</nav>
+
+<div class="dashboard-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-section-label">Student</div>
+    <a class="sidebar-link active" data-tab="overview" onclick="switchTab('overview', this)">
+      <span class="sidebar-icon">📊</span> Overview
+    </a>
+    <a class="sidebar-link" data-tab="grades" onclick="switchTab('grades', this)">
+      <span class="sidebar-icon">📝</span> My Grades
+    </a>
+    <a class="sidebar-link" data-tab="attendance" onclick="switchTab('attendance', this)">
+      <span class="sidebar-icon">📅</span> Attendance
+    </a>
+    <a class="sidebar-link" data-tab="subjects" onclick="switchTab('subjects', this)">
+      <span class="sidebar-icon">📚</span> Subjects
+    </a>
+    <a class="sidebar-link" data-tab="todo" onclick="switchTab('todo', this)">
+      <span class="sidebar-icon">✅</span> To-Do List
+    </a>
+    <div style="margin-top: auto; padding: .75rem 1.25rem; border-top: 1px solid var(--gray-100);">
+      <div id="sidebar-info" style="font-size:.78rem; color:var(--gray-400); line-height:1.6;"></div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <section id="tab-overview" class="animate-in">
+      <div class="page-header">
+        <h2 id="welcome-heading">Welcome back!</h2>
+        <p id="welcome-sub">Here's a summary of your academic standing this semester.</p>
+      </div>
+
+      <!-- Announcement Banner -->
+      <div id="student-announcement" class="card" style="background: var(--maroon-pale); border-left: 5px solid var(--maroon); margin-bottom: 2rem; padding: 1.25rem; display: none;">
+        <div style="display: flex; gap: 1rem; align-items: start;">
+          <span style="font-size: 1.5rem;">📢</span>
+          <div>
+            <h4 id="student-ann-title" style="margin: 0; color: var(--maroon);">Urgent Announcement</h4>
+            <p id="student-ann-content" style="margin: 5px 0 0; font-size: 0.9rem; color: var(--gray-800);"></p>
+            <div id="student-ann-meta" style="font-size: 0.75rem; color: var(--gray-400); margin-top: 8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row" id="overview-stats">
+        <div class="stat-card">
+          <div class="stat-label">Subjects Enrolled</div>
+          <div class="stat-value" id="stat-subjects">—</div>
+          <div class="stat-sub">this semester</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Average Grade</div>
+          <div class="stat-value" id="stat-avg">—</div>
+          <div class="stat-sub">across all subjects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Passed Subjects</div>
+          <div class="stat-value" id="stat-passed">—</div>
+          <div class="stat-sub">grade ≥ 75</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Attendance Rate</div>
+          <div class="stat-value" id="stat-att">—</div>
+          <div class="stat-sub">average</div>
+        </div>
+      </div>
+
+      <div class="card card-maroon-top" style="margin-bottom: 2rem;">
+        <div class="card-header">
+          <h3>Performance Trend Across Subjects</h3>
+        </div>
+        <div style="padding: 1.5rem; height: 320px; position: relative;">
+          <canvas id="performanceTrendChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card card-maroon-top">
+        <div class="card-header">
+          <h3>Grade Summary</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject</th>
+                <th>Prelim</th>
+                <th>Midterm</th>
+                <th>Semi-Final</th>
+                <th>Final Exam</th>
+                <th>Final Grade</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="overview-table-body">
+              <tr><td colspan="8"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-grades" class="hidden animate-in">
+      <div id="print-header" style="display: none; text-align: center; margin-bottom: 20px;">
+        <img src="../BSU_logo.png" alt="BSU Logo" style="height: 80px; width: auto;" />
+        <h2 style="margin: 10px 0 5px; color: black; font-family: 'Merriweather', serif;">Batangas State University</h2>
+        <h4 style="margin: 0; color: #555; font-family: 'Plus Jakarta Sans', sans-serif;" id="print-student-name">Student Name</h4>
+        <h3 style="margin-top: 20px; text-decoration: underline; color: black; font-family: 'Plus Jakarta Sans', sans-serif;">Official Grade Slip</h3>
+      </div>
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h2>My Grades</h2>
+          <p>Click "View Computation" to see how each final grade was calculated.</p>
+        </div>
+        <button class="btn btn-outline btn-sm print-btn" onclick="printGradeSlip()">🖨️ Download / Print Grade Slip</button>
+      </div>
+      <div class="card card-maroon-top">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject Name</th>
+                <th>Units</th>
+                <th>Section</th>
+                <th>Instructor</th>
+                <th>Final Grade</th>
+                <th>Remarks</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="grades-table-body">
+              <tr><td colspan="8"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-attendance" class="hidden animate-in">
+      <div class="page-header">
+        <h2>Attendance Record</h2>
+        <p>Maximum allowable absences: <strong>6 sessions per subject.</strong></p>
+      </div>
+      <div class="card card-maroon-top">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject Name</th>
+                <th>Total Classes</th>
+                <th>Attended</th>
+                <th>Absences</th>
+                <th>Rate</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="attendance-table-body">
+              <tr><td colspan="7"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-subjects" class="hidden animate-in">
+      <div class="page-header">
+        <h2>All Subjects</h2>
+        <p>A complete list of course offerings and units you are taking for the semester.</p>
+      </div>
+      <div class="card card-maroon-top">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject Name</th>
+                <th>Units</th>
+              </tr>
+            </thead>
+            <tbody id="all-subjects-list">
+              <tr><td colspan="3"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-todo" class="hidden animate-in">
+      <div class="page-header">
+        <h2>My To-Do List</h2>
+        <p>Keep track of your assignments, projects, and personal tasks.</p>
+      </div>
+      
+      <div class="card card-maroon-top" style="margin-bottom: 20px;">
+        <div style="padding: 1.5rem;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="new-todo-input" class="edit-input" placeholder="What needs to be done?" style="flex: 2; min-width: 200px; border: 1px solid var(--gray-200); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.95rem; font-weight: normal; padding: 0.6rem 1rem;" onkeypress="if(event.key === 'Enter') addTodo()" />
+            <select id="new-todo-subject" class="edit-input" style="flex: 1; min-width: 150px; border: 1px solid var(--gray-200); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.95rem; font-weight: normal; padding: 0.6rem;">
+              <option value="">No Subject</option>
+            </select>
+            <input type="date" id="new-todo-date" class="edit-input" style="flex: 1; min-width: 130px; border: 1px solid var(--gray-200); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.95rem; font-weight: normal; padding: 0.6rem;" />
+            <button class="btn btn-primary" onclick="addTodo()" style="min-width: 100px;">Add Task</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <ul id="todo-list" style="list-style: none; padding: 0; margin: 0;">
+          <li><div class="loading" style="padding: 20px;"><div class="spinner"></div> Loading…</div></li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="comp-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="comp-modal-title">Grade Computation</h3>
+      <button class="modal-close" onclick="closeCompModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="comp-grid" id="comp-grid"></div>
+        
+      <div class="final-result" id="final-result-block"></div>
+
+      <!-- Private Comments Section -->
+      <div id="private-feedback-section" style="margin-top: 1.5rem; display: none;">
+        <h4 style="font-size: 0.85rem; color: var(--gray-400); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Instructor's Private Comments</h4>
+        <div id="private-comment-box" style="background: var(--gray-50); border: 1.5px dashed var(--maroon); border-radius: var(--radius); padding: 1rem; font-size: 0.9rem; color: var(--gray-800); font-style: italic;">
+          <!-- Comment injected here -->
+        </div>
+      </div>
+
+      <p class="formula-note">
+        Formula: Prelim (20%) + Midterm (20%) + Semi-Final (20%) + Final Exam (40%) = Final Grade
+      </p>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/student.js"></script>
+</body>
+</html>

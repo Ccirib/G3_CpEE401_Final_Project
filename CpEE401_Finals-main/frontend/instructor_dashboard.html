@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RedSentry — Instructor Portal</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .section-card {
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      background: var(--white);
+      transition: box-shadow var(--transition), border-color var(--transition);
+      cursor: pointer;
+    }
+    .section-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--maroon);
+    }
+    .section-card .sc-left { display: flex; flex-direction: column; gap: .3rem; }
+    .section-card .sc-code { font-size: .78rem; font-weight: 700; color: var(--maroon); text-transform: uppercase; letter-spacing: .04em; }
+    .section-card .sc-name { font-weight: 700; color: var(--gray-800); font-size: 1rem; }
+    .section-card .sc-meta { font-size: .8rem; color: var(--gray-400); }
+    .section-card .sc-count {
+      text-align: center;
+      background: var(--maroon-pale);
+      color: var(--maroon);
+      border-radius: var(--radius);
+      padding: .5rem .85rem;
+      font-weight: 800;
+      font-size: 1.1rem;
+      min-width: 56px;
+      line-height: 1.1;
+    }
+    .section-card .sc-count small { display: block; font-size: .65rem; font-weight: 500; color: var(--gray-400); }
+
+    .sections-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+
+    /* Student list in grade entry */
+    .grade-input-wrap { display: flex; align-items: center; gap: .4rem; }
+    .saved-mark { color: var(--green); font-size: .85rem; }
+
+    /* Tab buttons for grade/attendance toggle */
+    .tab-toggle {
+      display: flex;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .tab-toggle button {
+      flex: 1;
+      padding: .5rem .9rem;
+      border: none;
+      background: none;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--gray-400);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .tab-toggle button.active { background: var(--maroon); color: var(--white); }
+
+    .back-btn { margin-bottom: 1.5rem; }
+
+    /* ── Quick Search ── */
+    .quick-search-wrap {
+      position: relative;
+      max-width: 260px;
+    }
+    .quick-search-wrap input {
+      width: 100%;
+      padding: .45rem .75rem .45rem 2rem;
+      border: 1.5px solid rgba(255,255,255,.2);
+      border-radius: 20px;
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: .82rem;
+      outline: none;
+      transition: all .2s;
+    }
+    .quick-search-wrap input::placeholder { color: rgba(255,255,255,.5); }
+    .quick-search-wrap input:focus { background: rgba(255,255,255,.18); border-color: var(--gold-light); }
+    .quick-search-wrap::before {
+      content: '🔍';
+      position: absolute;
+      left: .6rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .75rem;
+      pointer-events: none;
+    }
+    .search-results {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0; right: 0;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 999;
+      display: none;
+    }
+    .search-results.show { display: block; }
+    .search-result-item {
+      padding: .6rem .85rem;
+      cursor: pointer;
+      font-size: .82rem;
+      border-bottom: 1px solid var(--gray-100);
+      color: var(--gray-800);
+      transition: background .15s;
+    }
+    .search-result-item:hover { background: var(--maroon-pale); }
+    .search-result-item small { color: var(--gray-400); }
+
+    /* ── Progress Stepper ── */
+    .progress-stepper {
+      margin-top: 8px;
+      height: 6px;
+      background: var(--gray-200);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-stepper-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width .6s ease;
+    }
+
+    /* ── Mini Calendar ── */
+    .mini-cal { padding: .75rem 1rem; border-top: 1px solid var(--gray-100); }
+    .mini-cal-title { font-size: .7rem; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .5rem; }
+    .cal-event {
+      padding: .4rem .6rem;
+      margin-bottom: .35rem;
+      border-left: 3px solid var(--maroon);
+      background: var(--maroon-pale);
+      border-radius: 0 6px 6px 0;
+      font-size: .72rem;
+      color: var(--gray-800);
+      line-height: 1.3;
+    }
+    .cal-event .cal-date { font-weight: 700; color: var(--maroon); font-size: .65rem; }
+
+    /* ── ENHANCED DARK MODE VARIABLES & OVERRIDES ── */
+    body.dark-theme {
+      --gray-50: #121212;  
+      --white: #1e1e1e;    
+      --gray-100: #2c2c2c; 
+      --gray-200: #3d3d3d; 
+      --gray-300: #555555;
+      --gray-400: #b0b0b0; 
+      --gray-800: #f5f5f5; 
+      --maroon: #ff7e7e;   
+      --maroon-pale: #3a1c1c;
+      
+      background-color: var(--gray-50);
+      color: var(--gray-800);
+    }
+    
+    body.dark-theme h1, body.dark-theme h2, 
+    body.dark-theme h3, body.dark-theme h4,
+    body.dark-theme .stat-value { color: var(--maroon) !important; }
+
+    body.dark-theme .sidebar-link { color: var(--gray-400); }
+    body.dark-theme .sidebar-link:hover { color: #ffffff; background: rgba(255, 255, 255, 0.05); }
+    body.dark-theme .sidebar-link.active {
+      background-color: #3a1c1c; color: #ffcccc; border-left-color: var(--maroon);
+    }
+
+    body.dark-theme table th { background: #2a2a2a; color: #b0b0b0; border-bottom: 2px solid var(--gray-200); }
+    body.dark-theme table td { color: var(--gray-800); border-bottom: 1px solid var(--gray-200); }
+    body.dark-theme strong { color: #ffffff !important; }
+
+    body.dark-theme .card, body.dark-theme .modal, body.dark-theme .sidebar { 
+      background-color: var(--white); border-color: var(--gray-200);
+    }
+    
+    /* Instructor specific input fields */
+    body.dark-theme input[type="number"], body.dark-theme select {
+      background-color: #2a2a2a;
+      color: white;
+      border: 1px solid var(--gray-300);
+    }
+    body.dark-theme input[type="number"]:focus, body.dark-theme select:focus {
+      border-color: var(--maroon);
+      outline: none;
+    }
+    body.dark-theme .quick-search-wrap input { background: rgba(255,255,255,.08); }
+    body.dark-theme .search-results { background: #1e1e1e; border-color: #3d3d3d; }
+    body.dark-theme .search-result-item { color: #f5f5f5; border-color: #2c2c2c; }
+    body.dark-theme .search-result-item:hover { background: #3a1c1c; }
+    body.dark-theme textarea { background: #2a2a2a; color: #f5f5f5; border-color: #3d3d3d; }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVBAR ──────────────────────────────────────────── -->
+<nav class="navbar" style="display: flex; justify-content: space-between; align-items: center;">
+  <a class="navbar-brand" href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+    <img src="../BSU_logo.png" alt="BSU Logo" style="height: 45px; width: auto;" onerror="this.style.display='none'" />
+    <div class="navbar-logo-text">
+      <div class="brand-name" style="font-weight: 900; font-size: 1.3rem; color: white;">RedSentry</div>
+      <div class="brand-sub" style="font-size: 0.75rem; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px;">Instructor Portal</div>
+    </div>
+  </a>
+  <div class="navbar-right" style="display: flex; align-items: center; gap: 12px;">
+    <!-- Quick Search -->
+    <div class="quick-search-wrap">
+      <input type="text" id="global-search" placeholder="Search student…" oninput="onGlobalSearch(this.value)" autocomplete="off" />
+      <div class="search-results" id="search-results"></div>
+    </div>
+
+    <span class="navbar-user" id="nav-username" style="color: white;">—</span>
+    
+    <button id="theme-toggle" onclick="toggleTheme()" style="background: transparent; border: none; font-size: 1.2rem; cursor: pointer; color: var(--gold-light); transition: 0.2s;" title="Toggle Dark Mode">
+      🌙
+    </button>
+
+    <button class="btn btn-ghost btn-sm" style="color:var(--gold-light); background: rgba(255,255,255,0.1); border-radius: 4px; padding: 5px 10px; border: none; cursor: pointer;" onclick="logout()">
+      ⎋ Logout
+    </button>
+  </div>
+</nav>
+
+<!-- ── LAYOUT ──────────────────────────────────────────── -->
+<div class="dashboard-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section-label">Instructor</div>
+    <a class="sidebar-link active" data-tab="sections" onclick="switchTab('sections', this)">
+      <span class="sidebar-icon">🏫</span> My Sections
+    </a>
+    <a class="sidebar-link" data-tab="atrisk" onclick="switchTab('atrisk', this)">
+      <span class="sidebar-icon">🚨</span> At-Risk Hub
+    </a>
+    <a class="sidebar-link" data-tab="entry" onclick="switchTab('entry', this)" id="entry-link" style="display:none">
+      <span class="sidebar-icon">✏️</span> Grade Entry
+    </a>
+
+    <!-- Deadlines Calendar -->
+    <div class="mini-cal" id="mini-calendar">
+      <div class="mini-cal-title">📅 Upcoming Deadlines</div>
+      <div id="cal-events">
+        <div style="font-size:.72rem; color:var(--gray-400); padding: .3rem 0;">No deadlines set.</div>
+      </div>
+      <button class="btn btn-sm btn-ghost" style="width:100%; margin-top:.5rem; font-size:.7rem; padding: 4px;" onclick="openDeadlineModal()">+ Add Deadline</button>
+    </div>
+
+    <!-- Export -->
+    <div style="padding: .5rem 1rem;">
+      <button class="btn btn-sm btn-outline" style="width: 100%; font-size: .75rem;" onclick="exportGrades()">
+        📥 Export Grade Sheet
+      </button>
+    </div>
+
+    <div style="margin-top:auto; padding:.75rem 1.25rem; border-top:1px solid var(--gray-100);">
+      <div id="sidebar-info" style="font-size:.78rem; color:var(--gray-400); line-height:1.6;"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <!-- ── SECTIONS TAB ── -->
+    <section id="tab-sections" class="animate-in">
+      <!-- Announcement Bar -->
+      <div id="announcement-bar" class="card" style="background: var(--maroon-pale); border-left: 5px solid var(--maroon); margin-bottom: 1.5rem; padding: 1rem; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div id="announcement-content">
+            <strong>📢 Announcement:</strong> <span id="ann-text">Loading...</span>
+            <div id="ann-meta" style="font-size: 0.75rem; color: var(--gray-400); margin-top: 4px;"></div>
+          </div>
+          <div id="ann-actions" style="display: flex; gap: 0.5rem; flex-wrap: nowrap;">
+            <button id="ann-delete-btn" class="btn btn-sm btn-outline" onclick="deleteAnnouncement()" style="font-size: 0.7rem; color: var(--red); border-color: var(--red); display: none;">Delete</button>
+            <button class="btn btn-sm btn-outline" onclick="openAnnouncementModal()" style="font-size: 0.7rem;">Post New</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-header">
+        <h2>My Handling Subjects &amp; Sections</h2>
+        <p>Select a section to view students and input grades or attendance.</p>
+      </div>
+      <div class="sections-grid" id="sections-grid">
+        <div class="loading"><div class="spinner"></div> Loading…</div>
+      </div>
+    </section>
+
+    <!-- ── AT-RISK TAB ── -->
+    <section id="tab-atrisk" class="hidden animate-in">
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h2>🚨 At-Risk Student Dashboard</h2>
+          <p>Students flagged for low grades (below 75) or high absences (5+).</p>
+        </div>
+        <div style="min-width: 200px;">
+          <label style="font-size: 0.8rem; font-weight: 700; color: var(--gray-400); text-transform: uppercase;">Filter by Section:</label>
+          <select id="atrisk-section-filter" onchange="renderAtRisk()" style="width: 100%; padding: 0.5rem; border: 1.5px solid var(--gray-200); border-radius: var(--radius); font-family: inherit;">
+            <option value="all">All Sections</option>
+          </select>
+        </div>
+      </div>
+      <div id="atrisk-container">
+        <!-- Grouped tables will be inserted here dynamically -->
+        <div class="loading" style="padding: 2rem;"><div class="spinner"></div> Loading…</div>
+      </div>
+    </section>
+
+    <!-- ── GRADE ENTRY TAB ── -->
+    <section id="tab-entry" class="hidden animate-in">
+      <button class="btn btn-ghost btn-sm back-btn" onclick="goBackToSections()">
+        ← Back to Sections
+      </button>
+
+      <div class="page-header">
+        <h2 id="entry-heading">Grade Entry</h2>
+        <p id="entry-sub">Enter grades and attendance for enrolled students.</p>
+      </div>
+
+      <!-- Toggle: Grades / Attendance -->
+      <div class="tab-toggle" style="max-width:260px; margin-bottom:1.5rem">
+        <button class="active" id="toggle-grades"     onclick="showEntryMode('grades')">📝 Grades</button>
+        <button id="toggle-attendance"                onclick="showEntryMode('attendance')">📅 Attendance</button>
+      </div>
+
+      <!-- Grades view -->
+      <div id="entry-grades">
+        <div class="card card-maroon-top">
+          <div class="card-header">
+            <h3>Grade Entry</h3>
+            <div style="display:flex; gap:.5rem; align-items:center;">
+              <button class="btn btn-outline btn-sm" onclick="openCurveModal()">📈 Curve Grades</button>
+              <button class="btn btn-primary btn-sm" onclick="saveAllGrades()">💾 Save All Grades</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>SR-Code</th>
+                  <th>Student Name</th>
+                  <th>Prelim <span style="color:var(--gray-400);font-weight:400">(20%)</span></th>
+                  <th>Midterm <span style="color:var(--gray-400);font-weight:400">(20%)</span></th>
+                  <th>Semi-Final <span style="color:var(--gray-400);font-weight:400">(20%)</span></th>
+                  <th>Final Exam <span style="color:var(--gray-400);font-weight:400">(40%)</span></th>
+                  <th>Final Grade</th>
+                  <th>Status</th>
+                  <th>Feedback</th>
+                </tr>
+              </thead>
+              <tbody id="grade-entry-body">
+                <tr><td colspan="9"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance view -->
+      <div id="entry-attendance" class="hidden">
+        <div class="card card-maroon-top">
+          <div class="card-header">
+            <h3>Attendance Entry</h3>
+            <div style="display:flex; gap:.5rem; align-items:center;">
+              <button class="btn btn-ghost btn-sm" onclick="selectAllPresent()" title="Add +1 to Total Classes and Attended for all students">➕ Add +1 Class to All</button>
+              <button class="btn btn-primary btn-sm" onclick="saveAllAttendance()">💾 Save All</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>SR-Code</th>
+                  <th>Student Name</th>
+                  <th>Total Classes</th>
+                  <th>Classes Attended</th>
+                  <th>Absences</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="att-entry-body">
+                <tr><td colspan="6"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<!-- ── MODALS ── -->
+<!-- Feedback Modal -->
+<div id="feedback-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Private Feedback</h3>
+      <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="feedback-student-name" style="font-weight: 700; color: var(--maroon);"></p>
+      <div class="form-group">
+        <label>Comment / Reasoning for deduction</label>
+        <textarea id="feedback-text" rows="4" style="width: 100%; border: 1.5px solid var(--gray-200); border-radius: var(--radius); padding: 0.5rem; font-family: inherit; font-size: 0.9rem; resize: none;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeFeedbackModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFeedback()">Apply Comment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Announcement Modal -->
+<div id="announcement-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Broadcast Announcement</h3>
+      <button class="modal-close" onclick="closeAnnouncementModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Message Content</label>
+        <textarea id="ann-input" rows="4" placeholder="e.g. Lab 3 deadline extended to Friday..." style="width: 100%; border: 1.5px solid var(--gray-200); border-radius: var(--radius); padding: 0.5rem; font-family: inherit; font-size: 0.9rem; resize: none;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAnnouncementModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="postAnnouncement()">Broadcast to All Sections</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Modal -->
+<div id="stats-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <h3 id="stats-title">Section Statistics</h3>
+      <button class="modal-close" onclick="closeStatsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="stats-chart" style="display: flex; align-items: flex-end; height: 180px; gap: 20px; border-bottom: 2px solid var(--gray-200); padding-bottom: 10px; margin-top: 20px;">
+        <!-- Bars injected here -->
+      </div>
+      <div style="display: flex; justify-content: space-between; padding-top: 10px; font-size: 0.75rem; color: var(--gray-400); text-align: center; font-weight: 700;">
+        <div style="flex:1">A (90+)</div>
+        <div style="flex:1">B (80-89)</div>
+        <div style="flex:1">C (75-79)</div>
+        <div style="flex:1">F (<75)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deadline Modal -->
+<div id="deadline-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 420px;">
+    <div class="modal-header">
+      <h3>Add Deadline</h3>
+      <button class="modal-close" onclick="closeDeadlineModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Subject</label>
+        <select id="deadline-subject" style="width:100%; padding:.5rem; border:1.5px solid var(--gray-200); border-radius:var(--radius); font-family:inherit; font-size:.88rem;">
+          <!-- populated by JS -->
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Deadline Date</label>
+        <input type="date" id="deadline-date" style="width:100%; padding:.5rem; border:1.5px solid var(--gray-200); border-radius:var(--radius); font-family:inherit; font-size:.88rem;" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="deadline-desc" placeholder="e.g. Lab 3 Submission" style="width:100%; padding:.5rem; border:1.5px solid var(--gray-200); border-radius:var(--radius); font-family:inherit; font-size:.88rem;" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDeadlineModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addDeadline()">Add Deadline</button>
+    </div>
+  </div>
+</div>
+
+<!-- Intervene Modal -->
+<div id="intervene-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <h3>Intervention Actions</h3>
+      <button class="modal-close" onclick="closeInterveneModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom: 1rem; color: var(--gray-400); font-size: 0.9rem; line-height: 1.4;">
+        Choose an action for <strong id="intervene-student-name" style="color: var(--maroon);"></strong><br>
+        <span id="intervene-student-email" style="font-size: 0.75rem; color: var(--gray-400);"></span>
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <button id="intervene-grade-btn" class="btn btn-primary" style="width: 100%;">📝 Go to Grade / Attendance Entry</button>
+        <a id="intervene-email-btn" href="#" class="btn btn-outline" style="width: 100%; text-align: center; text-decoration: none;">✉️ Send Email</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Curve Modal -->
+<div id="curve-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <h3>Bulk Grade Curve</h3>
+      <button class="modal-close" onclick="closeCurveModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Term to Curve</label>
+        <select id="curve-term" style="width:100%; padding:.5rem; border:1.5px solid var(--gray-200); border-radius:var(--radius); font-family:inherit; font-size:.88rem;">
+          <option value="prelim">Prelim</option>
+          <option value="midterm">Midterm</option>
+          <option value="semi">Semi-Final</option>
+          <option value="final">Final Exam</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Points to Add (can be negative)</label>
+        <input type="number" id="curve-points" placeholder="e.g. 5 or -2" step="0.01" style="width:100%; padding:.5rem; border:1.5px solid var(--gray-200); border-radius:var(--radius); font-family:inherit; font-size:.88rem;" />
+      </div>
+      <p style="font-size: 0.75rem; color: var(--gray-400); margin-top: 10px;">Note: Grades will be capped between 0 and 100.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCurveModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="applyCurve()">Apply Curve</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/instructor.js"></script>
+</body>
+</html>

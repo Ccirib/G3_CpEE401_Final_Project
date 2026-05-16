@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RedSentry: Spartan Progress Academic Tracker</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    /* ── Login-page-specific styles ── */
+    body {
+      background: var(--gray-50);
+    }
+
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .login-header {
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .login-header img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+    }
+
+    .login-header-text {
+      line-height: 1.25;
+    }
+
+    .login-header-text .site-name {
+      font-family: 'Merriweather', serif;
+      font-size: 1.75rem;
+      font-weight: 900;
+      color: var(--maroon);
+      letter-spacing: -.02em;
+    }
+
+    .login-header-text .site-sub {
+      font-size: .82rem;
+      color: var(--gray-400);
+      letter-spacing: .04em;
+    }
+
+    /* Divider under header */
+    .header-accent {
+      height: 4px;
+      background: linear-gradient(to right, var(--maroon), var(--gold));
+    }
+
+    /* Portal grid */
+    .portal-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      padding: 3rem 2rem;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .portal-card {
+      background: var(--white);
+      border: 1.5px solid var(--gray-200);
+      border-top: 4px solid var(--maroon);
+      border-radius: var(--radius-lg);
+      padding: 2rem 2rem 2.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--transition), transform var(--transition);
+      position: relative;
+    }
+
+    .portal-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+
+    /* Gold corner accent */
+    .portal-card::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      right: 16px;
+      width: 14px;
+      height: 14px;
+      background: var(--gold);
+      border-radius: 0 0 4px 4px;
+    }
+
+    .portal-title {
+      font-family: 'Merriweather', serif;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--maroon);
+    }
+
+    .portal-desc {
+      font-size: .88rem;
+      color: var(--gray-400);
+      margin-top: -.25rem;
+    }
+
+    .portal-card .form-group {
+      margin-top: .5rem;
+    }
+
+    .portal-card .btn {
+      margin-top: .75rem;
+    }
+
+    /* Instructor note */
+    .auth-note {
+      font-size: .78rem;
+      color: var(--gray-400);
+      text-align: center;
+      margin-top: .25rem;
+      font-style: italic;
+    }
+
+    /* Error message */
+    .login-error {
+      font-size: .82rem;
+      color: var(--red);
+      background: var(--red-bg);
+      padding: .55rem .85rem;
+      border-radius: 6px;
+      display: none;
+    }
+
+    .login-error.show {
+      display: block;
+    }
+
+    /* Footer */
+    .login-footer {
+      text-align: center;
+      padding: 1.25rem;
+      font-size: .78rem;
+      color: var(--gray-400);
+      border-top: 1px solid var(--gray-200);
+      background: var(--white);
+    }
+
+    @media (max-width: 640px) {
+      .portal-grid {
+        grid-template-columns: 1fr;
+        padding: 1.5rem 1rem;
+      }
+
+      .login-header {
+        padding: 1rem;
+      }
+
+      .login-header-text .site-name {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────────── -->
+  <div class="login-header">
+    <img src="../BSU_logo.png" alt="BSU Logo" onerror="this.src=''; this.style.display='none'" />
+    <div class="login-header-text">
+      <div class="site-name">RedSentry</div>
+      <div class="site-sub">Spartan Progress Academic Tracker</div>
+    </div>
+  </div>
+  <div class="header-accent"></div>
+
+  <!-- ── PORTAL CARDS ───────────────────────────────────── -->
+  <div class="portal-grid">
+
+    <!-- Student Portal -->
+    <div class="portal-card">
+      <div class="portal-title">Student Portal</div>
+      <p class="portal-desc">Access your transparent grade computations.</p>
+
+      <div id="student-error" class="login-error"></div>
+
+      <div class="form-group">
+        <label for="student-id">SR-Code</label>
+        <input type="text" id="student-id" placeholder="e.g., 24-02471" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label for="student-pass">Password</label>
+        <input type="password" id="student-pass" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+
+      <button class="btn btn-primary btn-full" id="student-login-btn" onclick="handleStudentLogin()">
+        View Academic Progress
+      </button>
+    </div>
+
+    <!-- Instructor Portal -->
+    <div class="portal-card">
+      <div class="portal-title">Instructor Portal</div>
+      <p class="portal-desc">Database management and record updates.</p>
+
+      <div id="instructor-error" class="login-error"></div>
+
+      <div class="form-group">
+        <label for="instructor-id">Instructor ID</label>
+        <input type="text" id="instructor-id" placeholder="e.g., INST-001" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label for="instructor-pass">Authentication Key</label>
+        <input type="password" id="instructor-pass" placeholder="Enter secure key" autocomplete="current-password" />
+      </div>
+
+      <button class="btn btn-outline btn-full" id="instructor-login-btn" onclick="handleInstructorLogin()">
+        Access Database
+      </button>
+
+      <p class="auth-note">Authorized Access Only: Engr. Kurt Atienza</p>
+    </div>
+
+  </div>
+
+  <!-- ── FOOTER ─────────────────────────────────────────── -->
+  <div class="login-footer">
+    © 2026 Batangas State University — Computer Engineering Department &nbsp;|&nbsp;
+    RedSentry v2.0
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <script src="../js/login.js"></script>
+</body>
+
+</html>
